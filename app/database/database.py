@@ -1,5 +1,7 @@
+from sqlalchemy.orm import sessionmaker, Session
+from typing import Generator
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 
 from sqlalchemy import NullPool, func, text
 from sqlalchemy.ext.asyncio import (
