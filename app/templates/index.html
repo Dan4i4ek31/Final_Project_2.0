@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Фолиант — система учёта книг</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container">
+      <h1 class="brand">Фолиант</h1>
+      <div class="controls">
+        <input id="search" type="search" placeholder="Поиск по названию или автору…" />
+        <select id="sort">
+          <option value="title">Сортировка: название</option>
+          <option value="author">По автору</option>
+          <option value="genre">По жанру</option>
+          <option value="year_desc">Год (убыв.)</option>
+          <option value="year_asc">Год (возр.)</option>
+        </select>
+        <div class="auth" id="authControls">
+          <button id="btnLogin" class="btn primary">Войти</button>
+          <button id="btnRegister" class="btn secondary ghost">Регистрация</button>
+          <div id="userBadge" style="display:none;">
+            <span id="userName"></span> · <button id="btnLogout" class="ghost">Выйти</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main">
+    <aside class="sidebar">
+      <div class="card">
+        <h2>Статистика</h2>
+        <p id="stats">Загружаю…</p>
+      </div>
+      <div class="card">
+        <h2>Фильтры</h2>
+        <label>Год от <input id="yearFrom" type="number" min="0" placeholder="1990"></label>
+        <label>до <input id="yearTo" type="number" min="0" placeholder="2025"></label>
+        <button id="applyFilters">Применить</button>
+        <button id="clearFilters" class="ghost">Сброс</button>
+      </div>
+      <div class="card small">
+        <h3>Всего книг</h3>
+        <div id="totalCount">0</div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <div class="toolbar">
+        <button id="addRandom">Добавить случайную книгу</button>
+        <div class="view-info" id="viewInfo">Показано 0 из 0</div>
+      </div>
+
+      <div id="bookGrid" class="grid" aria-live="polite">
+        <!-- Сгенерированные карточки книг -->
+      </div>
+
+      <footer class="pagination">
+        <button id="prevPage">&larr; Назад</button>
+        <span id="pageInfo">1</span>
+        <button id="nextPage">Вперёд &rarr;</button>
+      </footer>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="support">
+        Техподдержка: <a href="mailto:support@foliant.local">support@foliant.local</a> · Тел. +7 (495) 123‑45‑67
+      </div>
+      <div class="meta">
+        Foliant v1.0 · © <span id="year"></span>
+      </div>
+    </div>
+  </footer>
+
+  <template id="bookCard">
+    <article class="book" tabindex="0">
+      <div class="cover" data-color="" aria-hidden="true"></div>
+      <div class="meta">
+        <h3 class="title"></h3>
+        <p class="author"></p>
+        <p class="description" aria-hidden="true"></p>
+        <div><span class="year year-pill"></span></div>
+        <p class="genre" aria-hidden="true"></p>
+        <div class="comments" aria-live="polite">
+          <div class="comments-list"></div>
+          <div class="comments-form">
+            <input class="comment-input" placeholder="Оставить комментарий…" />
+            <button class="comment-add">Отправить</button>
+            <button class="read-toggle" title="Отметить как прочитано">Читать</button>
+          </div>
+        </div>
+      </div>
+      <div class="badge" aria-hidden="true"></div>
+    </article>
+  </template>
+
+  <!-- auth modal -->
+  <div id="authModal" class="modal" aria-hidden="true">
+    <div class="modal-inner">
+      <button class="modal-close" aria-label="Закрыть" id="authClose">&times;</button>
+      <header class="modal-header">
+        <h3 id="modalTitle">Вход</h3>
+        <p class="muted small">Войдите в аккаунт или создайте новый</p>
+      </header>
+      <div class="auth-fields">
+        <label>Логин<input id="authLogin" /></label>
+        <label>Пароль<input id="authPass" type="password" /></label>
+      </div>
+      <div class="modal-actions">
+        <button id="authSubmit" class="btn primary">Войти</button>
+        <button id="authCancel" class="btn secondary ghost">Отмена</button>
+      </div>
+      <div id="authMsg" class="muted"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
