@@ -9,7 +9,7 @@ from app.exceptions.auth import (
     JWTTokenExpiredError,
 )
 from app.exceptions.base import ObjectAlreadyExistsError
-from app.schemes.users import (
+from app.schemes.user import (
     SUserAdd,
     SUserAddRequest,
     SUserAuth,

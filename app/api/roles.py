@@ -1,68 +1,61 @@
-from fastapi import APIRouter
-
-from app.api.dependencies import DBDep
-from app.exceptions.roles import (
-    RoleAlreadyExistsError,
-    RoleAlreadyExistsHTTPError,
-    RoleNotFoundError,
-    RoleNotFoundHTTPError,
-)
-from app.schemes.roles import SRoleAdd, SRoleGet
-from app.schemes.relations_users_roles import SRoleGetWithRels
+from typing import List
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.database.database import get_db
+from app.exceptions.roles import RoleInUseException
+from app.schemes.roles import Role, RoleCreate, RoleUpdate
 from app.services.roles import RoleService
-
-router = APIRouter(prefix="/auth", tags=["Управление ролями"])
-
-
-@router.post("/roles", summary="Создание новой роли")
-async def create_new_role(
-    role_data: SRoleAdd,
-    db: DBDep,
-) -> dict[str, str]:
-    try:
-        await RoleService(db).create_role(role_data)
-    except RoleAlreadyExistsError:
-        raise RoleAlreadyExistsHTTPError
-    return {"status": "OK"}
+from app.exceptions.roles import (
+    RoleNotFoundException,
+    RoleAlreadyExistsException,
+    RoleInUseException
+)
+router = APIRouter(prefix="/roles", tags=["roles"])
 
 
-@router.get("/roles", summary="Получение списка ролей")
-async def get_all_roles(
-    db: DBDep,
-) -> list[SRoleGet]:
-    return await RoleService(db).get_roles()
+@router.get("/", response_model=List[Role])
+def read_roles(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    service = RoleService(db)
+    return service.get_roles(skip, limit)
 
 
-@router.get("/roles/{id}", summary="Получение конкретной роли")
-async def get_role(
-    db: DBDep,
-    id: int,
-) -> SRoleGetWithRels:
-    return await RoleService(db).get_role(role_id=id)
+@router.get("/{role_id}", response_model=Role)
+def read_role(role_id: int, db: Session = Depends(get_db)):
+    service = RoleService(db)
+    role = service.get_role(role_id)
+    if role is None:
+        raise RoleNotFoundException(role_id=role_id)
+    return role
 
 
-@router.put("/roles/{id}", summary="Изменение конкретной роли")
-async def get_role(
-    db: DBDep,
-    role_data: SRoleAdd,
-    id: int,
-) -> dict[str, str]:
-    try:
-        await RoleService(db).edit_role(role_id=id, role_data=role_data)
-    except RoleNotFoundError:
-        raise RoleNotFoundHTTPError
-
-    return {"status": "OK"}
+@router.post("/", response_model=Role)
+def create_role(role: RoleCreate, db: Session = Depends(get_db)):
+    service = RoleService(db)
+    existing_role = service.get_role_by_name(role.name)
+    if existing_role:
+        raise RoleAlreadyExistsException(role_name=role.name)
+    return service.create_role(role)
 
 
-@router.delete("/roles/{id}", summary="Удаление конкретной роли")
-async def delete_role(
-    db: DBDep,
-    id: int,
-) -> dict[str, str]:
-    try:
-        await RoleService(db).delete_role(role_id=id)
-    except RoleNotFoundError:
-        raise RoleNotFoundHTTPError
+@router.put("/{role_id}", response_model=Role)
+def update_role(role_id: int, role: RoleUpdate, db: Session = Depends(get_db)):
+    service = RoleService(db)
+    db_role = service.update_role(role_id, role)
+    if db_role is None:
+        raise RoleNotFoundException(role_id=role_id)
+    return db_role
 
-    return {"status": "OK"}
+
+@router.delete("/{role_id}", response_model=Role)
+def delete_role(role_id: int, db: Session = Depends(get_db)):
+    service = RoleService(db)
+    db_role = service.get_role(role_id)
+    if db_role is None:
+        raise RoleNotFoundException(role_id=role_id)
+    
+    # Проверяем, используется ли роль
+    if db_role.users:
+        raise RoleInUseException(role_name=db_role.name)
+    
+    deleted_role = service.delete_role(role_id)
+    return deleted_role

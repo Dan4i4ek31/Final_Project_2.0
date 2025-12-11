@@ -12,4 +12,4 @@ class AuthorsModel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    books:Mapped[list["BooksModel"]] = relationship(back_populates = "authors")
+    books: Mapped[list["BooksModel"]] = relationship(back_populates="author")

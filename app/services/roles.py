@@ -1,42 +1,31 @@
-from app.exceptions.base import ObjectAlreadyExistsError
-from app.exceptions.roles import RoleNotFoundError, RoleAlreadyExistsError
-from app.schemes.roles import SRoleAdd
-from app.schemes.relations_users_roles import SRoleGetWithRels
-from app.services.base import BaseService
+from typing import List, Optional
+from sqlalchemy.orm import Session
+from app.repositories.roles import RoleRepository
+from app.schemes.roles import RoleCreate, RoleUpdate
+from app.models.roles import RoleModel
 
 
-class RoleService(BaseService):
+class RoleService:
+    def __init__(self, db: Session):
+        self.repository = RoleRepository(db)
 
-    async def create_role(self, role_data: SRoleAdd):
-        try:
-            await self.db.roles.add(role_data)
-        except ObjectAlreadyExistsError:
-            raise RoleAlreadyExistsError
-        await self.db.commit()
+    def get_role(self, role_id: int) -> Optional[RoleModel]:
+        return self.repository.get(role_id)
 
-    async def get_role(self, role_id: int):
-        role: SRoleGetWithRels | None = await self.db.roles.get_one_or_none_with_users(
-            id=role_id
-        )
-        if not role:
-            raise RoleNotFoundError
-        return role
+    def get_role_by_name(self, name: str) -> Optional[RoleModel]:
+        return self.repository.get_by_name(name)
 
-    async def edit_role(self, role_id: int, role_data: SRoleAdd):
-        role: SRoleGetWithRels | None = await self.db.roles.get_one_or_none(id=role_id)
-        if not role:
-            raise RoleNotFoundError
-        await self.db.roles.edit(role_data)
-        await self.db.commit()
-        return
+    def get_roles(self, skip: int = 0, limit: int = 100) -> List[RoleModel]:
+        return self.repository.get_all(skip, limit)
 
-    async def delete_role(self, role_id: int):
-        role: SRoleGetWithRels | None = await self.db.roles.get_one_or_none(id=role_id)
-        if not role:
-            raise RoleNotFoundError
-        await self.db.roles.delete(id=role_id)
-        await self.db.commit()
-        return
+    def create_role(self, role: RoleCreate) -> RoleModel:
+        return self.repository.create(role.dict())
 
-    async def get_roles(self):
-        return await self.db.roles.get_all()
+    def update_role(self, role_id: int, role: RoleUpdate) -> Optional[RoleModel]:
+        db_role = self.repository.get(role_id)
+        if db_role:
+            return self.repository.update(db_role, role.dict(exclude_unset=True))
+        return None
+
+    def delete_role(self, role_id: int) -> Optional[RoleModel]:
+        return self.repository.delete(role_id)

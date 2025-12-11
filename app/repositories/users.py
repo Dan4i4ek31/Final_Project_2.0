@@ -1,28 +1,15 @@
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-
+from typing import List, Optional
+from sqlalchemy.orm import Session
 from app.models.users import UserModel
 from app.repositories.base import BaseRepository
-from app.schemes.users import SUserGet
-from app.schemes.relations_users_roles import SUserGetWithRels
 
 
-class UsersRepository(BaseRepository):
-    model = UserModel
-    schema = SUserGet
+class UserRepository(BaseRepository[UserModel]):
+    def __init__(self, db: Session):
+        super().__init__(UserModel, db)
 
-    async def get_one_or_none_with_role(self, **filter_by):
-        query = (
-            select(self.model)
-            .filter_by(**filter_by)
-            .options(selectinload(self.model.role))
-        )
+    def get_by_email(self, email: str) -> Optional[UserModel]:
+        return self.db.query(UserModel).filter(UserModel.email == email).first()
 
-        result = await self.session.execute(query)
-
-        model = result.scalars().one_or_none()
-        if model is None:
-            return None
-
-        result = SUserGetWithRels.model_validate(model, from_attributes=True)
-        return result
+    def get_by_role(self, role_id: int, skip: int = 0, limit: int = 100) -> List[UserModel]:
+        return self.db.query(UserModel).filter(UserModel.role_id == role_id).offset(skip).limit(limit).all()

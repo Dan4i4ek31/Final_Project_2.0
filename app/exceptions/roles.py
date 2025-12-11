@@ -1,19 +1,31 @@
-from app.exceptions.base import MyAppError, MyAppHTTPError
+from fastapi import HTTPException, status
 
 
-class RoleNotFoundError(MyAppError):
-    detail = "Роли не существует"
+class RoleNotFoundException(HTTPException):
+    def __init__(self, role_id: int = None, role_name: str = None):
+        if role_id is not None:
+            detail = f"Role with id {role_id} not found"
+        elif role_name is not None:
+            detail = f"Role '{role_name}' not found"
+        else:
+            detail = "Role not found"
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=detail
+        )
 
 
-class RoleNotFoundHTTPError(MyAppHTTPError):
-    status_code = 404
-    detail = "Роли не существует"
+class RoleAlreadyExistsException(HTTPException):
+    def __init__(self, role_name: str):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role '{role_name}' already exists"
+        )
 
 
-class RoleAlreadyExistsError(MyAppError):
-    detail = "Такая роль уже существует"
-
-
-class RoleAlreadyExistsHTTPError(MyAppHTTPError):
-    status_code = 409
-    detail = "Такая роль уже существует"
+class RoleInUseException(HTTPException):
+    def __init__(self, role_name: str):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete role '{role_name}' because it is assigned to users"
+        )
