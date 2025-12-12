@@ -1,5 +1,7 @@
+// Замените ВСЕ содержимое app.js на этот код:
+
 // Основной файл приложения "Фолиант"
-import './auth.js';
+console.log('Загружен app.js');
 
 // Глобальные переменные
 let books = [];
@@ -13,61 +15,38 @@ let currentFilters = {
 };
 
 // DOM элементы
-const elements = {
-    bookGrid: null,
-    searchInput: null,
-    sortSelect: null,
-    yearFromInput: null,
-    yearToInput: null,
-    applyFiltersBtn: null,
-    clearFiltersBtn: null,
-    prevPageBtn: null,
-    nextPageBtn: null,
-    pageInfo: null,
-    totalCount: null,
-    viewInfo: null,
-    addRandomBtn: null,
-    statsEl: null
-};
+const elements = {};
 
 // Инициализация приложения
 async function init() {
     console.log('Инициализация приложения "Фолиант"...');
     
-    // Получаем все DOM элементы
-    cacheElements();
-    
-    // Проверяем наличие элементов
-    if (!elements.bookGrid) {
-        console.error('Основной элемент bookGrid не найден');
-        return;
+    try {
+        // Получаем все DOM элементы
+        cacheElements();
+        
+        // Проверяем наличие элементов
+        if (!elements.bookGrid) {
+            console.error('Основной элемент bookGrid не найден');
+            return;
+        }
+        
+        // Настройка обработчиков событий
+        setupEventListeners();
+        
+        // Загружаем данные
+        await loadData();
+        
+        // Первоначальная отрисовка
+        renderBooks();
+        updatePagination();
+        updateStats();
+        
+        console.log('Приложение инициализировано успешно');
+    } catch (error) {
+        console.error('Ошибка инициализации:', error);
+        showError('Ошибка загрузки приложения');
     }
-    
-    // Устанавливаем текущий год в футере
-    document.getElementById('year').textContent = new Date().getFullYear();
-    
-    // Инициализация системы аутентификации
-    if (window.authSystem) {
-        window.authSystem.init();
-    } else {
-        console.error('Модуль аутентификации не найден');
-    }
-    
-    // Инициализация системы уведомлений
-    initNotifications();
-    
-    // Настройка обработчиков событий
-    setupEventListeners();
-    
-    // Загружаем данные
-    await loadData();
-    
-    // Первоначальная отрисовка
-    renderBooks();
-    updatePagination();
-    updateStats();
-    
-    console.log('Приложение инициализировано');
 }
 
 // Кэширование DOM элементов
@@ -86,59 +65,9 @@ function cacheElements() {
     elements.viewInfo = document.getElementById('viewInfo');
     elements.addRandomBtn = document.getElementById('addRandom');
     elements.statsEl = document.getElementById('stats');
-}
-
-// Инициализация системы уведомлений
-function initNotifications() {
-    if (!window.showNotification) {
-        // Создаем простую систему уведомлений, если её нет
-        window.showNotification = function(message, type = 'info', duration = 3000) {
-            console.log(`[${type.toUpperCase()}] ${message}`);
-            
-            // Создаем уведомление в DOM
-            const notification = document.createElement('div');
-            notification.textContent = message;
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 12px 20px;
-                background: ${type === 'success' ? '#d4edda' : 
-                            type === 'error' ? '#f8d7da' : 
-                            type === 'warning' ? '#fff3cd' : '#d1ecf1'};
-                color: ${type === 'success' ? '#155724' : 
-                        type === 'error' ? '#721c24' : 
-                        type === 'warning' ? '#856404' : '#0c5460'};
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                z-index: 1000;
-                animation: slideInRight 0.3s ease;
-                max-width: 300px;
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Удаляем через указанное время
-            setTimeout(() => {
-                notification.style.animation = 'slideOutRight 0.3s ease';
-                setTimeout(() => notification.remove(), 300);
-            }, duration);
-        };
-        
-        // Добавляем стили для анимаций
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideInRight {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slideOutRight {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
+    
+    // Проверяем, что все элементы найдены
+    console.log('Найденные элементы:', elements);
 }
 
 // Настройка обработчиков событий
@@ -180,90 +109,165 @@ function setupEventListeners() {
     document.addEventListener('keydown', handleKeyDown);
 }
 
-// Загрузка данных
-async function loadData() {
-    try {
-        showNotification('Загрузка данных...', 'info');
-        
-        // Загружаем книги
-        const booksResponse = await fetch('/books/?skip=0&limit=1000');
-        if (!booksResponse.ok) throw new Error('Ошибка загрузки книг');
-        books = await booksResponse.json();
-        
-        // Загружаем авторов
-        const authorsResponse = await fetch('/authors/?skip=0&limit=1000');
-        const authors = authorsResponse.ok ? await authorsResponse.json() : [];
-        
-        // Загружаем жанры
-        const genresResponse = await fetch('/genres/?skip=0&limit=1000');
-        const genres = genresResponse.ok ? await genresResponse.json() : [];
-        
-        // Обогащаем книги данными авторов и жанров
-        books.forEach(book => {
-            const author = authors.find(a => a.id === book.author_id);
-            const genre = genres.find(g => g.id === book.genre_id);
-            
-            book.author_name = author ? author.name : 'Неизвестный автор';
-            book.genre_name = genre ? genre.name : 'Неизвестный жанр';
-        });
-        
-        // Загружаем комментарии для каждой книги
-        await loadCommentsForBooks();
-        
-        filteredBooks = [...books];
-        
-        showNotification(`Загружено ${books.length} книг`, 'success');
-        
-    } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
-        showNotification('Ошибка загрузки данных', 'error');
-        
-        // Используем тестовые данные, если API недоступно
-        books = getMockBooks();
-        filteredBooks = [...books];
-        showNotification('Используются тестовые данные', 'warning');
+// Показать ошибку
+function showError(message) {
+    if (elements.bookGrid) {
+        elements.bookGrid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #dc3545;">
+                <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                <h3>${message}</h3>
+                <p>Пожалуйста, проверьте консоль для деталей</p>
+            </div>
+        `;
     }
 }
 
-// Загрузка комментариев для книг
-async function loadCommentsForBooks() {
+// Загрузка данных
+async function loadData() {
+    console.log('Начинаем загрузку данных...');
+    
     try {
-        const commentsResponse = await fetch('/book-comments/?skip=0&limit=1000');
-        if (!commentsResponse.ok) return;
+        // Показываем сообщение о загрузке
+        showLoadingMessage();
         
-        const comments = await commentsResponse.json();
+        // Загружаем книги
+        console.log('Загружаем книги с API...');
+        const booksResponse = await fetch('/books/');
         
-        // Группируем комментарии по book_id
-        const commentsByBookId = {};
-        comments.forEach(comment => {
-            if (!commentsByBookId[comment.book_id]) {
-                commentsByBookId[comment.book_id] = [];
+        console.log('Ответ от /books/:', {
+            status: booksResponse.status,
+            statusText: booksResponse.statusText,
+            ok: booksResponse.ok
+        });
+        
+        if (!booksResponse.ok) {
+            throw new Error(`Ошибка загрузки книг: ${booksResponse.status} ${booksResponse.statusText}`);
+        }
+        
+        books = await booksResponse.json();
+        console.log(`Загружено ${books.length} книг:`, books);
+        
+        // Загружаем авторов
+        console.log('Загружаем авторов...');
+        let authors = [];
+        try {
+            const authorsResponse = await fetch('/authors/');
+            if (authorsResponse.ok) {
+                authors = await authorsResponse.json();
+                console.log(`Загружено ${authors.length} авторов`);
+            } else {
+                console.warn('Не удалось загрузить авторов');
             }
-            commentsByBookId[comment.book_id].push(comment);
+        } catch (error) {
+            console.warn('Ошибка загрузки авторов:', error);
+        }
+        
+        // Загружаем жанры
+        console.log('Загружаем жанры...');
+        let genres = [];
+        try {
+            const genresResponse = await fetch('/genres/');
+            if (genresResponse.ok) {
+                genres = await genresResponse.json();
+                console.log(`Загружено ${genres.length} жанров`);
+            } else {
+                console.warn('Не удалось загрузить жанры');
+            }
+        } catch (error) {
+            console.warn('Ошибка загрузки жанров:', error);
+        }
+        
+        // Обогащаем книги данными авторов и жанров
+        books.forEach(book => {
+            // Находим автора
+            let authorName = 'Неизвестный автор';
+            if (authors.length > 0) {
+                const author = authors.find(a => a.id === book.author_id);
+                if (author) {
+                    authorName = author.name;
+                }
+            } else if (book.author) {
+                // Если автор приходит с книгой (relationship)
+                authorName = book.author.name;
+            }
+            
+            // Находим жанр
+            let genreName = 'Неизвестный жанр';
+            if (genres.length > 0) {
+                const genre = genres.find(g => g.id === book.genre_id);
+                if (genre) {
+                    genreName = genre.name;
+                }
+            } else if (book.genre) {
+                // Если жанр приходит с книгой (relationship)
+                genreName = book.genre.name;
+            }
+            
+            // Сохраняем данные
+            book.author_name = authorName;
+            book.genre_name = genreName;
+            book.comments = book.book_comments || [];
+            
+            // Проверяем наличие необходимых полей
+            if (!book.title) book.title = 'Без названия';
+            if (!book.year) book.year = 'Не указан';
+            if (!book.description) book.description = 'Описание отсутствует';
         });
         
-        // Добавляем комментарии к книгам
-        books.forEach(book => {
-            book.comments = commentsByBookId[book.id] || [];
-        });
+        filteredBooks = [...books];
+        
+        // Применяем сортировку по умолчанию
+        applySorting();
+        
+        // Показываем уведомление об успехе
+        if (window.showNotification && books.length > 0) {
+            window.showNotification(`Загружено ${books.length} книг`, 'success');
+        } else if (window.showNotification) {
+            window.showNotification('Книги не найдены. Добавьте книги в базу данных.', 'info');
+        }
         
     } catch (error) {
-        console.error('Ошибка загрузки комментариев:', error);
+        console.error('Ошибка загрузки данных:', error);
+        
+        // Используем тестовые данные
+        console.log('Используем тестовые данные...');
+        books = getMockBooks();
+        filteredBooks = [...books];
+        
+        if (window.showNotification) {
+            window.showNotification('Используются тестовые данные', 'warning');
+        }
+    }
+}
+
+// Показать сообщение о загрузке
+function showLoadingMessage() {
+    if (elements.bookGrid) {
+        elements.bookGrid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--muted);">
+                <div style="font-size: 48px; margin-bottom: 10px; animation: spin 2s linear infinite;">📚</div>
+                <h3>Загрузка книг...</h3>
+                <p>Пожалуйста, подождите</p>
+            </div>
+        `;
     }
 }
 
 // Обработка поиска
 function handleSearch() {
+    if (!elements.searchInput) return;
+    
     const searchTerm = elements.searchInput.value.toLowerCase().trim();
     
     if (!searchTerm) {
         filteredBooks = [...books];
     } else {
-        filteredBooks = books.filter(book => 
-            book.title.toLowerCase().includes(searchTerm) ||
-            (book.author_name && book.author_name.toLowerCase().includes(searchTerm)) ||
-            (book.description && book.description.toLowerCase().includes(searchTerm))
-        );
+        filteredBooks = books.filter(book => {
+            const titleMatch = book.title && book.title.toLowerCase().includes(searchTerm);
+            const authorMatch = book.author_name && book.author_name.toLowerCase().includes(searchTerm);
+            const descMatch = book.description && book.description.toLowerCase().includes(searchTerm);
+            return titleMatch || authorMatch || descMatch;
+        });
     }
     
     currentPage = 1;
@@ -275,6 +279,8 @@ function handleSearch() {
 
 // Обработка изменения сортировки
 function handleSortChange() {
+    if (!elements.sortSelect) return;
+    
     currentSort = elements.sortSelect.value;
     applySorting();
     renderBooks();
@@ -284,29 +290,29 @@ function handleSortChange() {
 function applySorting() {
     switch(currentSort) {
         case 'title':
-            filteredBooks.sort((a, b) => a.title.localeCompare(b.title));
+            filteredBooks.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
             break;
         case 'author':
-            filteredBooks.sort((a, b) => a.author_name.localeCompare(b.author_name));
+            filteredBooks.sort((a, b) => (a.author_name || '').localeCompare(b.author_name || ''));
             break;
         case 'genre':
-            filteredBooks.sort((a, b) => a.genre_name.localeCompare(b.genre_name));
+            filteredBooks.sort((a, b) => (a.genre_name || '').localeCompare(b.genre_name || ''));
             break;
         case 'year_desc':
-            filteredBooks.sort((a, b) => b.year - a.year);
+            filteredBooks.sort((a, b) => (b.year || 0) - (a.year || 0));
             break;
         case 'year_asc':
-            filteredBooks.sort((a, b) => a.year - b.year);
+            filteredBooks.sort((a, b) => (a.year || 0) - (b.year || 0));
             break;
         default:
-            filteredBooks.sort((a, b) => a.title.localeCompare(b.title));
+            filteredBooks.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
     }
 }
 
 // Применение фильтров
 function applyFilters() {
-    const yearFrom = elements.yearFromInput.value ? parseInt(elements.yearFromInput.value) : null;
-    const yearTo = elements.yearToInput.value ? parseInt(elements.yearToInput.value) : null;
+    const yearFrom = elements.yearFromInput?.value ? parseInt(elements.yearFromInput.value) : null;
+    const yearTo = elements.yearToInput?.value ? parseInt(elements.yearToInput.value) : null;
     
     currentFilters.yearFrom = yearFrom;
     currentFilters.yearTo = yearTo;
@@ -318,12 +324,13 @@ function applyFilters() {
     });
     
     // Применяем текущий поиск
-    const searchTerm = elements.searchInput.value.toLowerCase().trim();
+    const searchTerm = elements.searchInput?.value.toLowerCase().trim() || '';
     if (searchTerm) {
-        filteredBooks = filteredBooks.filter(book => 
-            book.title.toLowerCase().includes(searchTerm) ||
-            (book.author_name && book.author_name.toLowerCase().includes(searchTerm))
-        );
+        filteredBooks = filteredBooks.filter(book => {
+            const titleMatch = book.title && book.title.toLowerCase().includes(searchTerm);
+            const authorMatch = book.author_name && book.author_name.toLowerCase().includes(searchTerm);
+            return titleMatch || authorMatch;
+        });
     }
     
     currentPage = 1;
@@ -335,20 +342,22 @@ function applyFilters() {
 
 // Сброс фильтров
 function clearFilters() {
-    elements.yearFromInput.value = '';
-    elements.yearToInput.value = '';
+    if (elements.yearFromInput) elements.yearFromInput.value = '';
+    if (elements.yearToInput) elements.yearToInput.value = '';
+    
     currentFilters.yearFrom = null;
     currentFilters.yearTo = null;
     
     filteredBooks = [...books];
     
     // Применяем текущий поиск
-    const searchTerm = elements.searchInput.value.toLowerCase().trim();
+    const searchTerm = elements.searchInput?.value.toLowerCase().trim() || '';
     if (searchTerm) {
-        filteredBooks = filteredBooks.filter(book => 
-            book.title.toLowerCase().includes(searchTerm) ||
-            (book.author_name && book.author_name.toLowerCase().includes(searchTerm))
-        );
+        filteredBooks = filteredBooks.filter(book => {
+            const titleMatch = book.title && book.title.toLowerCase().includes(searchTerm);
+            const authorMatch = book.author_name && book.author_name.toLowerCase().includes(searchTerm);
+            return titleMatch || authorMatch;
+        });
     }
     
     currentPage = 1;
@@ -381,10 +390,10 @@ function goToNextPage() {
 
 // Обновление пагинации
 function updatePagination() {
-    const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
+    const totalPages = Math.ceil(filteredBooks.length / booksPerPage) || 1;
     
     if (elements.pageInfo) {
-        elements.pageInfo.textContent = `${currentPage} / ${totalPages || 1}`;
+        elements.pageInfo.textContent = `${currentPage} / ${totalPages}`;
     }
     
     if (elements.prevPageBtn) {
@@ -420,8 +429,6 @@ function updateStats() {
             <strong>📊 Статистика:</strong><br>
             <small>Всего книг: ${books.length}</small><br>
             <small>Найдено: ${filteredBooks.length}</small><br>
-            <small>Жанров: ${new Set(books.map(b => b.genre_name)).size}</small><br>
-            <small>Авторов: ${new Set(books.map(b => b.author_name)).size}</small>
         </div>
     `;
     
@@ -434,7 +441,7 @@ function updateStats() {
                 <small>${user.email}</small>
             </div>
             <div style="margin-top: 10px;">
-                <button onclick="window.authSystem.logout()" class="btn ghost small">Выйти</button>
+                <button onclick="logoutUser()" class="btn ghost small">Выйти</button>
             </div>
         `;
     } else {
@@ -444,13 +451,32 @@ function updateStats() {
                 <small>Войдите для доступа ко всем функциям</small>
             </div>
             <div style="margin-top: 10px;">
-                <button onclick="window.authSystem.login()" class="btn primary small">Войти</button>
-                <button onclick="window.authSystem.register()" class="btn secondary ghost small">Регистрация</button>
+                <button onclick="showLogin()" class="btn primary small">Войти</button>
+                <button onclick="showRegister()" class="btn secondary ghost small">Регистрация</button>
             </div>
         `;
     }
     
     elements.statsEl.innerHTML = statsHtml;
+}
+
+// Функции для кнопок в статистике
+function logoutUser() {
+    if (window.authSystem && window.authSystem.logout) {
+        window.authSystem.logout();
+    }
+}
+
+function showLogin() {
+    if (window.authSystem && window.authSystem.login) {
+        window.authSystem.login();
+    }
+}
+
+function showRegister() {
+    if (window.authSystem && window.authSystem.register) {
+        window.authSystem.register();
+    }
 }
 
 // Отрисовка книг
@@ -463,13 +489,6 @@ function renderBooks() {
     const endIndex = Math.min(startIndex + booksPerPage, filteredBooks.length);
     const booksToShow = filteredBooks.slice(startIndex, endIndex);
     
-    booksToShow.forEach((book, index) => {
-        const bookEl = createBookElement(book);
-        bookEl.style.animationDelay = `${index * 0.05}s`;
-        elements.bookGrid.appendChild(bookEl);
-    });
-    
-    // Если нет книг для отображения
     if (booksToShow.length === 0) {
         elements.bookGrid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--muted);">
@@ -478,7 +497,14 @@ function renderBooks() {
                 <p>Попробуйте изменить параметры поиска или фильтры</p>
             </div>
         `;
+        return;
     }
+    
+    booksToShow.forEach((book, index) => {
+        const bookEl = createBookElement(book);
+        bookEl.style.animationDelay = `${index * 0.05}s`;
+        elements.bookGrid.appendChild(bookEl);
+    });
 }
 
 // Создание элемента книги
@@ -492,6 +518,9 @@ function createBookElement(book) {
     const clone = template.content.cloneNode(true);
     const bookEl = clone.querySelector('.book');
     
+    // Устанавливаем ID книги
+    bookEl.dataset.bookId = book.id;
+    
     // Устанавливаем данные
     const cover = bookEl.querySelector('.cover');
     const title = bookEl.querySelector('.title');
@@ -501,6 +530,10 @@ function createBookElement(book) {
     const genre = bookEl.querySelector('.genre');
     const badge = bookEl.querySelector('.badge');
     const commentsList = bookEl.querySelector('.comments-list');
+    const commentForm = bookEl.querySelector('.comments-form');
+    const commentInput = bookEl.querySelector('.comment-input');
+    const commentAdd = bookEl.querySelector('.comment-add');
+    const readToggle = bookEl.querySelector('.read-toggle');
     
     // Цвет обложки на основе названия
     const colors = ['#ffd9b3', '#ffb86b', '#ff9a3d', '#ff7b0f', '#e65c00'];
@@ -509,21 +542,22 @@ function createBookElement(book) {
     cover.textContent = book.title.charAt(0).toUpperCase();
     
     title.textContent = book.title;
-    author.textContent = `Автор: ${book.author_name}`;
+    author.textContent = `Автор: ${book.author_name || 'Неизвестен'}`;
     description.textContent = book.description || 'Описание отсутствует';
-    year.textContent = book.year;
-    genre.textContent = `Жанр: ${book.genre_name}`;
+    year.textContent = book.year || 'Не указан';
+    genre.textContent = `Жанр: ${book.genre_name || 'Неизвестен'}`;
     
     // Бейдж с количеством комментариев
     const commentCount = book.comments ? book.comments.length : 0;
     badge.textContent = commentCount > 0 ? `💬 ${commentCount}` : '💬 0';
     
     // Показываем комментарии
-    if (commentsList && book.comments) {
+    if (commentsList && book.comments && book.comments.length > 0) {
+        commentsList.innerHTML = '';
         book.comments.forEach(comment => {
             const commentEl = document.createElement('div');
             commentEl.className = 'comment';
-            commentEl.textContent = comment.comment_text;
+            commentEl.textContent = comment.comment_text || comment.text || 'Комментарий';
             commentsList.appendChild(commentEl);
         });
     }
@@ -559,7 +593,7 @@ function setupBookEvents(bookEl, book) {
     const readToggle = bookEl.querySelector('.read-toggle');
     if (readToggle) {
         if (window.authSystem && window.authSystem.isAuthenticated()) {
-            readToggle.style.display = 'block';
+            readToggle.style.display = 'inline-block';
             
             // Проверяем текущий статус
             checkReadStatus(book.id, readToggle);
@@ -623,7 +657,9 @@ async function checkReadStatus(bookId, button) {
 // Переключение статуса "Прочитано"
 async function toggleReadStatus(bookId, button) {
     if (!window.authSystem || !window.authSystem.isAuthenticated()) {
-        showNotification('Войдите, чтобы отмечать книги как прочитанные', 'warning');
+        if (window.showNotification) {
+            window.showNotification('Войдите, чтобы отмечать книги как прочитанные', 'warning');
+        }
         return;
     }
     
@@ -649,7 +685,9 @@ async function toggleReadStatus(bookId, button) {
             if (updateResponse.ok) {
                 button.classList.toggle('read');
                 button.textContent = button.classList.contains('read') ? 'Прочитано' : 'Читать';
-                showNotification('Статус обновлен', 'success');
+                if (window.showNotification) {
+                    window.showNotification('Статус обновлен', 'success');
+                }
             }
         } else {
             // Создаем новую запись
@@ -670,29 +708,39 @@ async function toggleReadStatus(bookId, button) {
             if (createResponse.ok) {
                 button.classList.add('read');
                 button.textContent = 'Прочитано';
-                showNotification('Книга добавлена в прочитанные', 'success');
+                if (window.showNotification) {
+                    window.showNotification('Книга добавлена в прочитанные', 'success');
+                }
             }
         }
     } catch (error) {
         console.error('Ошибка при обновлении статуса:', error);
-        showNotification('Ошибка при обновлении статуса', 'error');
+        if (window.showNotification) {
+            window.showNotification('Ошибка при обновлении статуса', 'error');
+        }
     }
 }
 
 // Добавление комментария
 async function addComment(bookId, text, bookEl) {
     if (!window.authSystem || !window.authSystem.isAuthenticated()) {
-        showNotification('Войдите, чтобы оставлять комментарии', 'warning');
+        if (window.showNotification) {
+            window.showNotification('Войдите, чтобы оставлять комментарии', 'warning');
+        }
         return;
     }
     
     if (!text.trim()) {
-        showNotification('Введите текст комментария', 'warning');
+        if (window.showNotification) {
+            window.showNotification('Введите текст комментария', 'warning');
+        }
         return;
     }
     
     if (text.length > 200) {
-        showNotification('Комментарий не должен превышать 200 символов', 'warning');
+        if (window.showNotification) {
+            window.showNotification('Комментарий не должен превышать 200 символов', 'warning');
+        }
         return;
     }
     
@@ -727,7 +775,7 @@ async function addComment(bookId, text, bookEl) {
             // Обновляем счетчик комментариев
             const badge = bookEl.querySelector('.badge');
             if (badge) {
-                const currentCount = parseInt(badge.textContent.match(/\d+/)[0]) || 0;
+                const currentCount = parseInt(badge.textContent.match(/\d+/)?.[0]) || 0;
                 badge.textContent = `💬 ${currentCount + 1}`;
             }
             
@@ -738,27 +786,42 @@ async function addComment(bookId, text, bookEl) {
                 book.comments.push(comment);
             }
             
-            showNotification('Комментарий добавлен', 'success');
+            // Очищаем поле ввода
+            const commentInput = bookEl.querySelector('.comment-input');
+            if (commentInput) {
+                commentInput.value = '';
+            }
+            
+            if (window.showNotification) {
+                window.showNotification('Комментарий добавлен', 'success');
+            }
             
         } else {
             const errorData = await response.json();
-            showNotification(errorData.detail || 'Ошибка при добавлении комментария', 'error');
+            if (window.showNotification) {
+                window.showNotification(errorData.detail || 'Ошибка при добавлении комментария', 'error');
+            }
         }
     } catch (error) {
         console.error('Ошибка:', error);
-        showNotification('Ошибка соединения', 'error');
+        if (window.showNotification) {
+            window.showNotification('Ошибка соединения', 'error');
+        }
     }
 }
 
 // Добавление случайной книги
 async function addRandomBook() {
     if (!window.authSystem || !window.authSystem.isAuthenticated()) {
-        showNotification('Войдите, чтобы добавлять книги', 'warning');
+        if (window.showNotification) {
+            window.showNotification('Войдите, чтобы добавлять книги', 'warning');
+        }
         return;
     }
     
     try {
         // Получаем список авторов и жанров
+        console.log('Загружаем авторов и жанры для добавления книги...');
         const [authorsResponse, genresResponse] = await Promise.all([
             fetch('/authors/?skip=0&limit=100'),
             fetch('/genres/?skip=0&limit=100')
@@ -767,8 +830,12 @@ async function addRandomBook() {
         const authors = authorsResponse.ok ? await authorsResponse.json() : [];
         const genres = genresResponse.ok ? await genresResponse.json() : [];
         
+        console.log(`Найдено авторов: ${authors.length}, жанров: ${genres.length}`);
+        
         if (authors.length === 0 || genres.length === 0) {
-            showNotification('Нужно создать авторов и жанры перед добавлением книг', 'warning');
+            if (window.showNotification) {
+                window.showNotification('Нужно создать авторов и жанры перед добавлением книг', 'warning');
+            }
             return;
         }
         
@@ -808,6 +875,8 @@ async function addRandomBook() {
             year: randomYear
         };
         
+        console.log('Отправляем данные книги:', bookData);
+        
         const response = await fetch('/books/', {
             method: 'POST',
             headers: {
@@ -829,19 +898,37 @@ async function addRandomBook() {
             filteredBooks.unshift(newBook);
             
             // Обновляем UI
+            currentPage = 1;
             renderBooks();
             updatePagination();
             updateStats();
             
-            showNotification(`Книга "${newBook.title}" добавлена`, 'success');
+            if (window.showNotification) {
+                window.showNotification(`Книга "${newBook.title}" добавлена`, 'success');
+            }
             
         } else {
             const errorData = await response.json();
-            showNotification(errorData.detail || 'Ошибка при добавлении книги', 'error');
+            console.error('Ошибка добавления книги:', errorData);
+            
+            let errorMessage = 'Ошибка при добавлении книги';
+            if (errorData.detail) {
+                if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (Array.isArray(errorData.detail)) {
+                    errorMessage = errorData.detail.map(err => err.msg || err).join(', ');
+                }
+            }
+            
+            if (window.showNotification) {
+                window.showNotification(errorMessage, 'error');
+            }
         }
     } catch (error) {
         console.error('Ошибка:', error);
-        showNotification('Ошибка соединения', 'error');
+        if (window.showNotification) {
+            window.showNotification('Ошибка соединения', 'error');
+        }
     }
 }
 
@@ -912,41 +999,6 @@ function getMockBooks() {
             comments: [
                 { id: 3, comment_text: "Классика!", user_id: 1 }
             ]
-        },
-        {
-            id: 3,
-            title: "Война и мир",
-            description: "Роман-эпопея Льва Николаевича Толстого, описывающий русское общество в эпоху войн против Наполеона.",
-            author_id: 3,
-            genre_id: 1,
-            year: 1869,
-            author_name: "Лев Толстой",
-            genre_name: "Роман-эпопея",
-            comments: []
-        },
-        {
-            id: 4,
-            title: "1984",
-            description: "Роман-антиутопия Джорджа Оруэлла, изданный в 1949 году.",
-            author_id: 4,
-            genre_id: 2,
-            year: 1949,
-            author_name: "Джордж Оруэлл",
-            genre_name: "Антиутопия",
-            comments: [
-                { id: 4, comment_text: "Актуально и сегодня", user_id: 3 }
-            ]
-        },
-        {
-            id: 5,
-            title: "Маленький принц",
-            description: "Аллегорическая повесть-сказка, наиболее известное произведение Антуана де Сент-Экзюпери.",
-            author_id: 5,
-            genre_id: 3,
-            year: 1943,
-            author_name: "Антуан де Сент-Экзюпери",
-            genre_name: "Сказка",
-            comments: []
         }
     ];
 }
@@ -963,7 +1015,31 @@ window.app = {
 };
 
 // Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM загружен, запускаем приложение...');
+    
+    // Даем время на загрузку всех скриптов
+    setTimeout(() => {
+        if (window.app && window.app.init) {
+            window.app.init();
+        } else {
+            console.error('Модуль app не загружен');
+            showError('Ошибка загрузки приложения');
+        }
+    }, 100);
+});
 
-// Для отладки
-console.log('Приложение "Фолиант" загружено');
+// Добавляем анимацию спиннера в CSS
+if (!document.querySelector('style#spin-animation')) {
+    const style = document.createElement('style');
+    style.id = 'spin-animation';
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+console.log('Приложение "Фолиант" загружено и готово к работе');
