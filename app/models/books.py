@@ -17,6 +17,7 @@ class BooksModel(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     year: Mapped[int] = mapped_column(Integer, nullable=False)
+    cover_image: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     
     # Внешние ключи
     author_id: Mapped[int] = mapped_column(ForeignKey("authors.id"), nullable=False)
