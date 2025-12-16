@@ -19,7 +19,6 @@ class BookBase(BaseModel):
     author_id: int = Field(..., ge=1, description="ID автора")
     genre_id: int = Field(..., ge=1, description="ID жанра")
     year: int = Field(..., ge=1000, le=2100, description="Год издания")
-    cover_image: Optional[str] = Field(None, max_length=500, description="URL изображения обложки книги")
 
 
 class BookCreate(BookBase):
@@ -32,7 +31,6 @@ class BookUpdate(BaseModel):
     author_id: Optional[int] = Field(None, ge=1, description="ID автора")
     genre_id: Optional[int] = Field(None, ge=1, description="ID жанра")
     year: Optional[int] = Field(None, ge=1000, le=2100, description="Год издания")
-    cover_image: Optional[str] = Field(None, max_length=500, description="URL изображения обложки книги")
 
 
 class Book(BookBase):
