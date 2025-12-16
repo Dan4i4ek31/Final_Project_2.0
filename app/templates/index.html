@@ -105,6 +105,58 @@
         </article>
     </template>
 
+    <!-- Модальное окно деталей книги -->
+    <div id="bookModal" class="book-modal" aria-hidden="true">
+        <div class="book-modal-overlay" onclick="closeBookModal()"></div>
+        <div class="book-modal-content">
+            <button class="book-modal-close" aria-label="Закрыть" onclick="closeBookModal()">✕</button>
+            
+            <div class="book-modal-header">
+                <div class="book-modal-cover" id="modalCover"></div>
+                <div class="book-modal-title-section">
+                    <h1 id="modalTitle" class="book-modal-title"></h1>
+                    <p id="modalAuthor" class="book-modal-author"></p>
+                    <div class="book-modal-meta-info">
+                        <span class="badge-info"><strong>Год:</strong> <span id="modalYear"></span></span>
+                        <span class="badge-info"><strong>Жанр:</strong> <span id="modalGenre"></span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="book-modal-body">
+                <div class="book-modal-section">
+                    <h3>Описание</h3>
+                    <p id="modalDescription" class="book-modal-description"></p>
+                </div>
+
+                <div class="book-modal-section">
+                    <h3>Комментарии (<span id="modalCommentsCount">0</span>)</h3>
+                    <div id="modalCommentsList" class="book-modal-comments"></div>
+                </div>
+
+                <div class="book-modal-section" id="addCommentSection" style="display: none;">
+                    <h3>Добавить комментарий</h3>
+                    <div class="book-modal-comment-form">
+                        <textarea 
+                            id="modalCommentInput" 
+                            class="book-modal-textarea" 
+                            placeholder="Напишите ваш комментарий..." 
+                            maxlength="500"
+                            rows="4"></textarea>
+                        <button id="modalCommentSubmit" class="btn primary">Отправить комментарий</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="book-modal-actions">
+                <button id="modalReadToggle" class="btn secondary ghost" style="display: none;">
+                    <span class="read-text">📖 Отметить как прочитанное</span>
+                </button>
+                <button class="btn secondary" onclick="closeBookModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно аутентификации -->
     <div id="authModal" class="modal" aria-hidden="true">
         <div class="modal-inner">
