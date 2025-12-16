@@ -1,5 +1,3 @@
-// Замените ВСЕ содержимое app.js на этот код:
-
 // Основной файл приложения "Фолиант"
 console.log('Загружен app.js');
 
@@ -479,12 +477,22 @@ function showRegister() {
     }
 }
 
-async function loadComments(bookId) {
+// ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ: Загрузка комментариев для книги
+async function loadCommentsForBook(bookId) {
     try {
-        const response = await fetch(`/books/${bookId}/comments`);
-        if (!response.ok) throw new Error('Ошибка загрузки комментариев');
+        console.log(`Загружаем комментарии для книги ${bookId}...`);
+        
+        // ✅ ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ ENDPOINT
+        const response = await fetch(`/book-comments/by-book/${bookId}`);
+        
+        if (!response.ok) {
+            console.warn(`Ошибка загрузки комментариев: ${response.status}`);
+            return [];
+        }
         
         const comments = await response.json();
+        console.log(`Загружено ${comments.length} комментариев для книги ${bookId}:`, comments);
+        
         return comments;
     } catch (error) {
         console.error('Ошибка при загрузке комментариев:', error);
@@ -492,85 +500,115 @@ async function loadComments(bookId) {
     }
 }
 
-function renderComments(bookId, comments) {
-    const commentsList = document.querySelector(`[data-book-id="${bookId}"] .comments-list`);
+// ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ: Добавление комментария
+async function addComment(bookId, text, bookEl) {
+    // Проверяем аутентификацию
+    if (!window.authSystem || !window.authSystem.isAuthenticated()) {
+        if (window.showNotification) {
+            window.showNotification('Войдите, чтобы оставлять комментарии', 'warning');
+        }
+        return;
+    }
     
-    if (!commentsList) return;
+    // Проверяем текст комментария
+    if (!text || !text.trim()) {
+        if (window.showNotification) {
+            window.showNotification('Комментарий не может быть пустым', 'warning');
+        }
+        return;
+    }
     
-    if (comments.length === 0) {
+    try {
+        const user = window.authSystem.getUser();
+        
+        // ✅ ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ ENDPOINT И СТРУКТУРУ ДАННЫХ
+        const response = await fetch('/book-comments/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                book_id: bookId,
+                user_id: user.id,
+                comment_text: text.trim()  // ✅ ПРАВИЛЬНОЕ ИМЯ ПОЛЯ
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Ошибка при добавлении комментария:', errorData);
+            if (window.showNotification) {
+                window.showNotification('Ошибка при добавлении комментария', 'error');
+            }
+            return;
+        }
+        
+        const newComment = await response.json();
+        console.log('Комментарий добавлен:', newComment);
+        
+        // ✅ ОЧИЩАЕМ ФОРМУ
+        const commentInput = bookEl.querySelector('.comment-input');
+        if (commentInput) {
+            commentInput.value = '';
+        }
+        
+        // ✅ ЗАГРУЖАЕМ И ОТОБРАЖАЕМ ОБНОВЛЕННЫЙ СПИСОК КОММЕНТАРИЕВ
+        const comments = await loadCommentsForBook(bookId);
+        renderCommentsForBook(bookEl, comments);
+        
+        // ✅ ОБНОВЛЯЕМ BADGE С КОЛИЧЕСТВОМ КОММЕНТАРИЕВ
+        const badge = bookEl.querySelector('.badge');
+        if (badge && comments) {
+            badge.textContent = comments.length > 0 ? `💬 ${comments.length}` : '💬 0';
+        }
+        
+        if (window.showNotification) {
+            window.showNotification('Комментарий добавлен!', 'success');
+        }
+        
+    } catch (error) {
+        console.error('Ошибка:', error);
+        if (window.showNotification) {
+            window.showNotification('Ошибка соединения', 'error');
+        }
+    }
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: Отрисовка комментариев для конкретной книги
+function renderCommentsForBook(bookEl, comments) {
+    const commentsList = bookEl.querySelector('.comments-list');
+    
+    if (!commentsList) {
+        console.error('comments-list не найден');
+        return;
+    }
+    
+    if (!comments || comments.length === 0) {
         commentsList.innerHTML = '<p style="color:#999; font-size:12px;">Нет комментариев</p>';
         return;
     }
     
     commentsList.innerHTML = comments.map(comment => `
-        <div class="comment">
-            <strong>${comment.user_name || 'Аноним'}:</strong> ${comment.text}
+        <div class="comment" style="padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.02); margin-bottom: 6px; font-size: 12px;">
+            <strong style="color: #333;">${escapeHtml(comment.user?.name || 'Аноним')}</strong>
+            <p style="margin: 4px 0 0 0; color: #666;">${escapeHtml(comment.comment_text)}</p>
+            <small style="color: #999; font-size: 11px;">${new Date(comment.created_at).toLocaleString('ru-RU')}</small>
         </div>
     `).join('');
 }
 
-// Загрузка и отображение комментариев
-async function loadAndDisplayComments(bookId) {
-    try {
-        const response = await fetch(`/books/${bookId}/comments`);
-        
-        if (!response.ok) {
-            throw new Error(`Ошибка загрузки: ${response.status}`);
-        }
-        
-        const comments = await response.json();
-        console.log('Загруженные комментарии:', comments);
-        
-        const commentsList = document.querySelector(`.comments-list`);
-        if (!commentsList) {
-            console.error('commentsList не найден');
-            return;
-        }
-        
-        if (!comments || comments.length === 0) {
-            commentsList.innerHTML = '<p style="color:#999; font-size:12px;">Нет комментариев</p>';
-            return;
-        }
-        
-        commentsList.innerHTML = comments.map(comment => `
-            <div class="comment" style="padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.02); margin-bottom: 6px; font-size: 12px;">
-                <strong style="color: #333;">${escapeHtml(comment.user_name || 'Аноним')}</strong>
-                <p style="margin: 4px 0 0 0; color: #666;">${escapeHtml(comment.text)}</p>
-                <small style="color: #999; font-size: 11px;">${new Date(comment.created_at).toLocaleString('ru-RU')}</small>
-            </div>
-        `).join('');
-        
-    } catch (error) {
-        console.error('Ошибка при загрузке комментариев:', error);
-        const commentsList = document.querySelector(`.comments-list`);
-        if (commentsList) {
-            commentsList.innerHTML = '<p style="color:#999; font-size:12px;">Ошибка загрузки комментариев</p>';
-        }
-    }
+// ✅ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Экранирование HTML для безопасности
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-
-async function loadCommentsForBook(bookId, commentsList) {
-    try {
-        const response = await fetch(`http://127.0.0.1:8000/book-comments/by-book/${bookId}`);
-        if (response.ok) {
-            const comments = await response.json();
-            if (comments && comments.length > 0) {
-                commentsList.innerHTML = '';
-                comments.forEach(comment => {
-                    const commentEl = document.createElement('div');
-                    commentEl.className = 'comment';
-                    commentEl.textContent = comment.comment_text || comment.commenttext;
-                    commentsList.appendChild(commentEl);
-                });
-                return comments;
-            }
-        }
-    } catch (error) {
-        console.error('Ошибка загрузки комментариев:', error);
-    }
-    return [];
-}
 // Отрисовка книг
 function renderBooks() {
     if (!elements.bookGrid) return;
@@ -622,10 +660,6 @@ function createBookElement(book) {
     const genre = bookEl.querySelector('.genre');
     const badge = bookEl.querySelector('.badge');
     const commentsList = bookEl.querySelector('.comments-list');
-    const commentForm = bookEl.querySelector('.comments-form');
-    const commentInput = bookEl.querySelector('.comment-input');
-    const commentAdd = bookEl.querySelector('.comment-add');
-    const readToggle = bookEl.querySelector('.read-toggle');
     
     // Цвет обложки на основе названия
     const colors = ['#ffd9b3', '#ffb86b', '#ff9a3d', '#ff7b0f', '#e65c00'];
@@ -640,18 +674,12 @@ function createBookElement(book) {
     genre.textContent = `Жанр: ${book.genre_name || 'Неизвестен'}`;
     
     // Бейдж с количеством комментариев
-    const commentCount = book.comments ? book.comments.length : 0;
+    const commentCount = book.book_comments ? book.book_comments.length : 0;
     badge.textContent = commentCount > 0 ? `💬 ${commentCount}` : '💬 0';
     
-    // Показываем комментарии
-    if (commentsList && book.comments && book.comments.length > 0) {
-        commentsList.innerHTML = '';
-        book.comments.forEach(comment => {
-            const commentEl = document.createElement('div');
-            commentEl.className = 'comment';
-            commentEl.textContent = comment.comment_text || comment.text || 'Комментарий';
-            commentsList.appendChild(commentEl);
-        });
+    // Показываем комментарии если они есть
+    if (commentsList && book.book_comments && book.book_comments.length > 0) {
+        renderCommentsForBook(bookEl, book.book_comments);
     }
     
     // Настройка обработчиков событий
@@ -679,16 +707,21 @@ function setupBookEvents(bookEl, book) {
         });
         
         bookEl.classList.toggle('expanded');
-    });
-    bookEl.classList.toggle('expanded');
         
         // ✅ ЗАГРУЖАЕМ КОММЕНТАРИИ КОГДА ОТКРЫВАЕМ ПАНЕЛЬ
         if (bookEl.classList.contains('expanded')) {
             const commentsList = bookEl.querySelector('.comments-list');
             if (commentsList) {
-                loadCommentsForBook(book.id, commentsList);
+                loadCommentsForBook(book.id).then(comments => {
+                    renderCommentsForBook(bookEl, comments);
+                }).catch(err => {
+                    console.error('Ошибка загрузки комментариев:', err);
+                    commentsList.innerHTML = '<p style="color:#999; font-size:12px;">Ошибка загрузки комментариев</p>';
+                });
             }
         }
+    });
+    
     // Кнопка "Читать/Прочитано"
     const readToggle = bookEl.querySelector('.read-toggle');
     if (readToggle) {
@@ -821,51 +854,6 @@ async function toggleReadStatus(bookId, button) {
     }
 }
 
-// Добавление комментария
-async function addComment(bookId, text) {
-    if (!currentUser) {
-        showNotification('Пожалуйста, авторизуйтесь для добавления комментариев', 'warning');
-        return;
-    }
-    
-    if (!text.trim()) {
-        showNotification('Комментарий не может быть пустым', 'warning');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/books/${bookId}/comments`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('user_token')}`
-            },
-            body: JSON.stringify({
-                text: text,
-                user_id: currentUser.id
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Ошибка при добавлении комментария');
-        }
-        
-        // ✅ КЛЮЧЕВОЙ МОМЕНТ: Загружаем обновленный список комментариев
-        const comments = await loadComments(bookId);
-        renderComments(bookId, comments);
-        
-        // Очищаем форму
-        const commentInput = document.querySelector(`[data-book-id="${bookId}"] .comment-input`);
-        if (commentInput) commentInput.value = '';
-        
-        showNotification('Комментарий добавлен!', 'success');
-        
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showNotification('Ошибка при добавлении комментария', 'error');
-    }
-}
-
 // Добавление случайной книги
 async function addRandomBook() {
     if (!window.authSystem || !window.authSystem.isAuthenticated()) {
@@ -947,7 +935,7 @@ async function addRandomBook() {
             // Обогащаем данными
             newBook.author_name = randomAuthor.name;
             newBook.genre_name = randomGenre.name;
-            newBook.comments = [];
+            newBook.book_comments = [];
             
             // Добавляем в локальные данные
             books.unshift(newBook);
@@ -1038,9 +1026,9 @@ function getMockBooks() {
             year: 1967,
             author_name: "Михаил Булгаков",
             genre_name: "Роман",
-            comments: [
-                { id: 1, comment_text: "Отличная книга!", user_id: 1 },
-                { id: 2, comment_text: "Перечитываю каждый год", user_id: 2 }
+            book_comments: [
+                { id: 1, comment_text: "Отличная книга!", user_id: 1, user: { name: "Пользователь 1" }, created_at: new Date().toISOString() },
+                { id: 2, comment_text: "Перечитываю каждый год", user_id: 2, user: { name: "Пользователь 2" }, created_at: new Date().toISOString() }
             ]
         },
         {
@@ -1052,8 +1040,8 @@ function getMockBooks() {
             year: 1866,
             author_name: "Фёдор Достоевский",
             genre_name: "Роман",
-            comments: [
-                { id: 3, comment_text: "Классика!", user_id: 1 }
+            book_comments: [
+                { id: 3, comment_text: "Классика!", user_id: 1, user: { name: "Пользователь 1" }, created_at: new Date().toISOString() }
             ]
         }
     ];
