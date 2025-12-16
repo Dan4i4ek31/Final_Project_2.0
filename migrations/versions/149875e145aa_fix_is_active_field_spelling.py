@@ -1,8 +1,8 @@
-"""Initial database schema
+"""Fix is_active field spelling
 
-Revision ID: 96be4e7dc6fd
+Revision ID: 149875e145aa
 Revises: 
-Create Date: 2025-12-11 09:28:17.819993
+Create Date: 2025-12-16 15:14:49.388825
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '96be4e7dc6fd'
+revision: str = '149875e145aa'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -41,11 +41,11 @@ def upgrade() -> None:
     )
     op.create_table('books',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('title', sa.String(length=100), nullable=False),
-    sa.Column('description', sa.String(length=500), nullable=True),
+    sa.Column('title', sa.String(length=200), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('year', sa.Integer(), nullable=False),
     sa.Column('author_id', sa.Integer(), nullable=False),
     sa.Column('genre_id', sa.Integer(), nullable=False),
-    sa.Column('year', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['author_id'], ['authors.id'], ),
     sa.ForeignKeyConstraint(['genre_id'], ['gengres.id'], ),
     sa.PrimaryKeyConstraint('id')

@@ -1,8 +1,8 @@
-"""Initial database schema
+"""Fix is_active field spelling
 
-Revision ID: 4668749974e0
-Revises: 96be4e7dc6fd
-Create Date: 2025-12-11 09:34:25.743676
+Revision ID: c862deac3d20
+Revises: 149875e145aa
+Create Date: 2025-12-16 15:55:44.675751
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '4668749974e0'
-down_revision: Union[str, Sequence[str], None] = '96be4e7dc6fd'
+revision: str = 'c862deac3d20'
+down_revision: Union[str, Sequence[str], None] = '149875e145aa'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
