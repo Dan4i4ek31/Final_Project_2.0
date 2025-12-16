@@ -11,6 +11,7 @@ let currentFilters = {
     yearFrom: null,
     yearTo: null
 };
+let currentModalBook = null; // Текущая открытая книга в модальном окне
 
 // DOM элементы
 const elements = {};
@@ -64,7 +65,21 @@ function cacheElements() {
     elements.addRandomBtn = document.getElementById('addRandom');
     elements.statsEl = document.getElementById('stats');
     
-    // Проверяем, что все элементы найдены
+    // Элементы модального окна книги
+    elements.bookModal = document.getElementById('bookModal');
+    elements.modalTitle = document.getElementById('modalTitle');
+    elements.modalAuthor = document.getElementById('modalAuthor');
+    elements.modalYear = document.getElementById('modalYear');
+    elements.modalGenre = document.getElementById('modalGenre');
+    elements.modalDescription = document.getElementById('modalDescription');
+    elements.modalCover = document.getElementById('modalCover');
+    elements.modalCommentsList = document.getElementById('modalCommentsList');
+    elements.modalCommentsCount = document.getElementById('modalCommentsCount');
+    elements.modalCommentInput = document.getElementById('modalCommentInput');
+    elements.modalCommentSubmit = document.getElementById('modalCommentSubmit');
+    elements.modalReadToggle = document.getElementById('modalReadToggle');
+    elements.addCommentSection = document.getElementById('addCommentSection');
+    
     console.log('Найденные элементы:', elements);
 }
 
@@ -101,6 +116,16 @@ function setupEventListeners() {
     // Добавление случайной книги
     if (elements.addRandomBtn) {
         elements.addRandomBtn.addEventListener('click', addRandomBook);
+    }
+    
+    // Обработчик для кнопки отправки комментария в модальном окне
+    if (elements.modalCommentSubmit) {
+        elements.modalCommentSubmit.addEventListener('click', submitModalComment);
+    }
+    
+    // Кнопка прочитано в модальном окне
+    if (elements.modalReadToggle) {
+        elements.modalReadToggle.addEventListener('click', toggleModalReadStatus);
     }
     
     // Обработка клавиатуры
@@ -477,12 +502,11 @@ function showRegister() {
     }
 }
 
-// ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ: Загрузка комментариев для книги
+// ✅ ФУНКЦИЯ: Загрузка комментариев для книги
 async function loadCommentsForBook(bookId) {
     try {
         console.log(`Загружаем комментарии для книги ${bookId}...`);
         
-        // ✅ ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ ENDPOINT
         const response = await fetch(`/book-comments/by-book/${bookId}`);
         
         if (!response.ok) {
@@ -500,8 +524,10 @@ async function loadCommentsForBook(bookId) {
     }
 }
 
-// ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ: Добавление комментария
-async function addComment(bookId, text, bookEl) {
+// ✅ ФУНКЦИЯ: Добавление комментария через модальное окно
+async function submitModalComment() {
+    if (!currentModalBook) return;
+    
     // Проверяем аутентификацию
     if (!window.authSystem || !window.authSystem.isAuthenticated()) {
         if (window.showNotification) {
@@ -510,8 +536,9 @@ async function addComment(bookId, text, bookEl) {
         return;
     }
     
-    // Проверяем текст комментария
-    if (!text || !text.trim()) {
+    const text = elements.modalCommentInput?.value.trim();
+    
+    if (!text) {
         if (window.showNotification) {
             window.showNotification('Комментарий не может быть пустым', 'warning');
         }
@@ -519,18 +546,21 @@ async function addComment(bookId, text, bookEl) {
     }
     
     try {
+        // Отключаем кнопку
+        elements.modalCommentSubmit.disabled = true;
+        elements.modalCommentSubmit.textContent = 'Отправка...';
+        
         const user = window.authSystem.getUser();
         
-        // ✅ ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ ENDPOINT И СТРУКТУРУ ДАННЫХ
         const response = await fetch('/book-comments/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                book_id: bookId,
+                book_id: currentModalBook.id,
                 user_id: user.id,
-                comment_text: text.trim()  // ✅ ПРАВИЛЬНОЕ ИМЯ ПОЛЯ
+                comment_text: text
             })
         });
         
@@ -546,21 +576,14 @@ async function addComment(bookId, text, bookEl) {
         const newComment = await response.json();
         console.log('Комментарий добавлен:', newComment);
         
-        // ✅ ОЧИЩАЕМ ФОРМУ
-        const commentInput = bookEl.querySelector('.comment-input');
-        if (commentInput) {
-            commentInput.value = '';
+        // Очищаем форму
+        if (elements.modalCommentInput) {
+            elements.modalCommentInput.value = '';
         }
         
-        // ✅ ЗАГРУЖАЕМ И ОТОБРАЖАЕМ ОБНОВЛЕННЫЙ СПИСОК КОММЕНТАРИЕВ
-        const comments = await loadCommentsForBook(bookId);
-        renderCommentsForBook(bookEl, comments);
-        
-        // ✅ ОБНОВЛЯЕМ BADGE С КОЛИЧЕСТВОМ КОММЕНТАРИЕВ
-        const badge = bookEl.querySelector('.badge');
-        if (badge && comments) {
-            badge.textContent = comments.length > 0 ? `💬 ${comments.length}` : '💬 0';
-        }
+        // Перезагружаем комментарии
+        const comments = await loadCommentsForBook(currentModalBook.id);
+        renderModalComments(comments);
         
         if (window.showNotification) {
             window.showNotification('Комментарий добавлен!', 'success');
@@ -571,33 +594,41 @@ async function addComment(bookId, text, bookEl) {
         if (window.showNotification) {
             window.showNotification('Ошибка соединения', 'error');
         }
+    } finally {
+        // Включаем кнопку
+        elements.modalCommentSubmit.disabled = false;
+        elements.modalCommentSubmit.textContent = 'Отправить комментарий';
     }
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: Отрисовка комментариев для конкретной книги
-function renderCommentsForBook(bookEl, comments) {
-    const commentsList = bookEl.querySelector('.comments-list');
+// ✅ ФУНКЦИЯ: Отрисовка комментариев в модальном окне
+function renderModalComments(comments) {
+    if (!elements.modalCommentsList) return;
     
-    if (!commentsList) {
-        console.error('comments-list не найден');
-        return;
+    if (elements.modalCommentsCount) {
+        elements.modalCommentsCount.textContent = comments.length;
     }
     
     if (!comments || comments.length === 0) {
-        commentsList.innerHTML = '<p style="color:#999; font-size:12px;">Нет комментариев</p>';
+        elements.modalCommentsList.innerHTML = `
+            <div class="no-comments">
+                <p>📝 Пока нет комментариев</p>
+                <small>Будьте первым, кто оставит комментарий!</small>
+            </div>
+        `;
         return;
     }
     
-    commentsList.innerHTML = comments.map(comment => `
-        <div class="comment" style="padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.02); margin-bottom: 6px; font-size: 12px;">
-            <strong style="color: #333;">${escapeHtml(comment.user?.name || 'Аноним')}</strong>
-            <p style="margin: 4px 0 0 0; color: #666;">${escapeHtml(comment.comment_text)}</p>
-            <small style="color: #999; font-size: 11px;">${new Date(comment.created_at).toLocaleString('ru-RU')}</small>
+    elements.modalCommentsList.innerHTML = comments.map(comment => `
+        <div class="book-modal-comments-item">
+            <strong>${escapeHtml(comment.user?.name || 'Аноним')}</strong>
+            <p>${escapeHtml(comment.comment_text)}</p>
+            <small>${new Date(comment.created_at).toLocaleString('ru-RU')}</small>
         </div>
     `).join('');
 }
 
-// ✅ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Экранирование HTML для безопасности
+// ✅ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Экранирование HTML
 function escapeHtml(text) {
     const map = {
         '&': '&amp;',
@@ -607,6 +638,166 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// ✅ ФУНКЦИЯ: Открытие модального окна с деталями книги
+async function openBookModal(book) {
+    if (!elements.bookModal) return;
+    
+    currentModalBook = book;
+    
+    // Устанавливаем информацию о книге
+    if (elements.modalTitle) elements.modalTitle.textContent = book.title;
+    if (elements.modalAuthor) elements.modalAuthor.textContent = `Автор: ${book.author_name}`;
+    if (elements.modalYear) elements.modalYear.textContent = book.year;
+    if (elements.modalGenre) elements.modalGenre.textContent = book.genre_name;
+    if (elements.modalDescription) elements.modalDescription.textContent = book.description;
+    
+    // Устанавливаем цвет обложки
+    if (elements.modalCover) {
+        const colors = ['#ffd9b3', '#ffb86b', '#ff9a3d', '#ff7b0f', '#e65c00'];
+        const colorIndex = book.title.length % colors.length;
+        elements.modalCover.style.background = colors[colorIndex];
+        elements.modalCover.textContent = book.title.charAt(0).toUpperCase();
+    }
+    
+    // Показываем форму комментария если авторизован
+    if (elements.addCommentSection) {
+        if (window.authSystem && window.authSystem.isAuthenticated()) {
+            elements.addCommentSection.style.display = 'block';
+        } else {
+            elements.addCommentSection.style.display = 'none';
+        }
+    }
+    
+    // Загружаем и показываем комментарии
+    const comments = await loadCommentsForBook(book.id);
+    renderModalComments(comments);
+    
+    // Настраиваем кнопку "Прочитано"
+    if (elements.modalReadToggle && window.authSystem && window.authSystem.isAuthenticated()) {
+        elements.modalReadToggle.style.display = 'block';
+        checkReadStatusForModal(book.id);
+    } else if (elements.modalReadToggle) {
+        elements.modalReadToggle.style.display = 'none';
+    }
+    
+    // Очищаем форму комментария
+    if (elements.modalCommentInput) {
+        elements.modalCommentInput.value = '';
+    }
+    
+    // Показываем модальное окно
+    elements.bookModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+// ✅ ФУНКЦИЯ: Закрытие модального окна
+function closeBookModal() {
+    if (!elements.bookModal) return;
+    
+    elements.bookModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = 'auto';
+    currentModalBook = null;
+}
+
+// ✅ ФУНКЦИЯ: Проверка статуса "Прочитано" для модального окна
+async function checkReadStatusForModal(bookId) {
+    if (!window.authSystem || !window.authSystem.isAuthenticated()) return;
+    
+    try {
+        const user = window.authSystem.getUser();
+        const response = await fetch(`/shelf/user/${user.id}/book/${bookId}`);
+        
+        if (response.ok) {
+            const shelfData = await response.json();
+            if (shelfData.status_read) {
+                if (elements.modalReadToggle) {
+                    elements.modalReadToggle.classList.add('read');
+                    elements.modalReadToggle.innerHTML = '✓ Прочитано';
+                }
+            } else {
+                if (elements.modalReadToggle) {
+                    elements.modalReadToggle.classList.remove('read');
+                    elements.modalReadToggle.innerHTML = '📖 Отметить как прочитанное';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка проверки статуса:', error);
+    }
+}
+
+// ✅ ФУНКЦИЯ: Переключение статуса "Прочитано" из модального окна
+async function toggleModalReadStatus() {
+    if (!currentModalBook || !window.authSystem || !window.authSystem.isAuthenticated()) {
+        if (window.showNotification) {
+            window.showNotification('Войдите, чтобы отмечать книги как прочитанные', 'warning');
+        }
+        return;
+    }
+    
+    try {
+        const user = window.authSystem.getUser();
+        const response = await fetch(`/shelf/user/${user.id}/book/${currentModalBook.id}`);
+        
+        if (response.ok) {
+            const existing = await response.json();
+            const updateResponse = await fetch(`/shelf/${existing.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    status_read: !existing.status_read
+                })
+            });
+            
+            if (updateResponse.ok) {
+                if (elements.modalReadToggle) {
+                    elements.modalReadToggle.classList.toggle('read');
+                    if (elements.modalReadToggle.classList.contains('read')) {
+                        elements.modalReadToggle.innerHTML = '✓ Прочитано';
+                    } else {
+                        elements.modalReadToggle.innerHTML = '📖 Отметить как прочитанное';
+                    }
+                }
+                if (window.showNotification) {
+                    window.showNotification('Статус обновлен', 'success');
+                }
+            }
+        } else {
+            // Создаем новую запись
+            const shelfData = {
+                book_id: currentModalBook.id,
+                user_id: user.id,
+                status_read: true
+            };
+            
+            const createResponse = await fetch('/shelf/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(shelfData)
+            });
+            
+            if (createResponse.ok) {
+                if (elements.modalReadToggle) {
+                    elements.modalReadToggle.classList.add('read');
+                    elements.modalReadToggle.innerHTML = '✓ Прочитано';
+                }
+                if (window.showNotification) {
+                    window.showNotification('Книга добавлена в прочитанные', 'success');
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка при обновлении статуса:', error);
+        if (window.showNotification) {
+            window.showNotification('Ошибка при обновлении статуса', 'error');
+        }
+    }
 }
 
 // Отрисовка книг
@@ -677,11 +868,6 @@ function createBookElement(book) {
     const commentCount = book.book_comments ? book.book_comments.length : 0;
     badge.textContent = commentCount > 0 ? `💬 ${commentCount}` : '💬 0';
     
-    // Показываем комментарии если они есть
-    if (commentsList && book.book_comments && book.book_comments.length > 0) {
-        renderCommentsForBook(bookEl, book.book_comments);
-    }
-    
     // Настройка обработчиков событий
     setupBookEvents(bookEl, book);
     
@@ -690,36 +876,16 @@ function createBookElement(book) {
 
 // Настройка обработчиков событий для книги
 function setupBookEvents(bookEl, book) {
-    // Раскрытие/сворачивание карточки
+    // Открытие модального окна при клике на карточку
     bookEl.addEventListener('click', function(e) {
-        // Не раскрываем, если клик был по интерактивным элементам
+        // Не открываем модалку, если клик был по интерактивным элементам
         if (e.target.closest('.read-toggle') || 
             e.target.closest('.comment-add') ||
             e.target.closest('.comment-input')) {
             return;
         }
         
-        // Закрываем другие открытые карточки
-        document.querySelectorAll('.book.expanded').forEach(otherBook => {
-            if (otherBook !== bookEl) {
-                otherBook.classList.remove('expanded');
-            }
-        });
-        
-        bookEl.classList.toggle('expanded');
-        
-        // ✅ ЗАГРУЖАЕМ КОММЕНТАРИИ КОГДА ОТКРЫВАЕМ ПАНЕЛЬ
-        if (bookEl.classList.contains('expanded')) {
-            const commentsList = bookEl.querySelector('.comments-list');
-            if (commentsList) {
-                loadCommentsForBook(book.id).then(comments => {
-                    renderCommentsForBook(bookEl, comments);
-                }).catch(err => {
-                    console.error('Ошибка загрузки комментариев:', err);
-                    commentsList.innerHTML = '<p style="color:#999; font-size:12px;">Ошибка загрузки комментариев</p>';
-                });
-            }
-        }
+        openBookModal(book);
     });
     
     // Кнопка "Читать/Прочитано"
@@ -727,14 +893,6 @@ function setupBookEvents(bookEl, book) {
     if (readToggle) {
         if (window.authSystem && window.authSystem.isAuthenticated()) {
             readToggle.style.display = 'inline-block';
-            
-            // Проверяем текущий статус
-            checkReadStatus(book.id, readToggle);
-            
-            readToggle.addEventListener('click', function(e) {
-                e.stopPropagation();
-                toggleReadStatus(book.id, this);
-            });
         } else {
             readToggle.style.display = 'none';
         }
@@ -748,108 +906,9 @@ function setupBookEvents(bookEl, book) {
     if (commentForm && commentInput && commentAdd) {
         if (window.authSystem && window.authSystem.isAuthenticated()) {
             commentForm.style.display = 'flex';
-            
-            commentAdd.addEventListener('click', function(e) {
-                e.stopPropagation();
-                addComment(book.id, commentInput.value, bookEl);
-            });
-            
-            commentInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.stopPropagation();
-                    addComment(book.id, this.value, bookEl);
-                }
-            });
         } else {
             commentForm.style.display = 'none';
             commentInput.placeholder = 'Войдите, чтобы оставить комментарий';
-        }
-    }
-}
-
-// Проверка статуса "Прочитано"
-async function checkReadStatus(bookId, button) {
-    if (!window.authSystem || !window.authSystem.isAuthenticated()) return;
-    
-    try {
-        const user = window.authSystem.getUser();
-        const response = await fetch(`/shelf/user/${user.id}/book/${bookId}`);
-        
-        if (response.ok) {
-            const shelfData = await response.json();
-            if (shelfData.status_read) {
-                button.classList.add('read');
-                button.textContent = 'Прочитано';
-            }
-        }
-    } catch (error) {
-        console.error('Ошибка проверки статуса:', error);
-    }
-}
-
-// Переключение статуса "Прочитано"
-async function toggleReadStatus(bookId, button) {
-    if (!window.authSystem || !window.authSystem.isAuthenticated()) {
-        if (window.showNotification) {
-            window.showNotification('Войдите, чтобы отмечать книги как прочитанные', 'warning');
-        }
-        return;
-    }
-    
-    try {
-        const user = window.authSystem.getUser();
-        
-        // Проверяем, есть ли уже запись на полке
-        const response = await fetch(`/shelf/user/${user.id}/book/${bookId}`);
-        
-        if (response.ok) {
-            const existing = await response.json();
-            // Обновляем статус
-            const updateResponse = await fetch(`/shelf/${existing.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    status_read: !existing.status_read
-                })
-            });
-            
-            if (updateResponse.ok) {
-                button.classList.toggle('read');
-                button.textContent = button.classList.contains('read') ? 'Прочитано' : 'Читать';
-                if (window.showNotification) {
-                    window.showNotification('Статус обновлен', 'success');
-                }
-            }
-        } else {
-            // Создаем новую запись
-            const shelfData = {
-                book_id: bookId,
-                user_id: user.id,
-                status_read: true
-            };
-            
-            const createResponse = await fetch('/shelf/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(shelfData)
-            });
-            
-            if (createResponse.ok) {
-                button.classList.add('read');
-                button.textContent = 'Прочитано';
-                if (window.showNotification) {
-                    window.showNotification('Книга добавлена в прочитанные', 'success');
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Ошибка при обновлении статуса:', error);
-        if (window.showNotification) {
-            window.showNotification('Ошибка при обновлении статуса', 'error');
         }
     }
 }
@@ -980,10 +1039,8 @@ async function addRandomBook() {
 function handleKeyDown(e) {
     switch(e.key) {
         case 'Escape':
-            // Закрываем все раскрытые карточки
-            document.querySelectorAll('.book.expanded').forEach(book => {
-                book.classList.remove('expanded');
-            });
+            // Закрываем модальное окно
+            closeBookModal();
             break;
             
         case 'ArrowLeft':
@@ -1053,6 +1110,8 @@ window.app = {
     loadData,
     renderBooks,
     addRandomBook,
+    openBookModal,
+    closeBookModal,
     getBooks: () => books,
     getFilteredBooks: () => filteredBooks,
     getCurrentUser: () => window.authSystem ? window.authSystem.getUser() : null
