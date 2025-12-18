@@ -15,6 +15,8 @@ from app.api import (
     shelf_router
 )
 from fastapi.middleware.cors import CORSMiddleware
+from app.admin import setup_admin
+from app.database.async_db import async_engine
 
 app = FastAPI(
     title="Library Management API",
@@ -43,6 +45,10 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/app/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
+# ========== Инициализация SQLAdmin ==========
+setup_admin(app, async_engine)
+# ============================================
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -62,4 +68,4 @@ def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app")
+    uvicorn.run("main:app", reload=True)
