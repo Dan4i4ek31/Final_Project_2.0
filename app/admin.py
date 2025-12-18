@@ -128,13 +128,7 @@ def setup_admin(app, engine: AsyncEngine):
         authentication_backend=None,  # Можно добавить аутентификацию позже
     )
     
-    # Регистрируем ModelViews
-    admin.register_model(RoleAdmin)
-    admin.register_model(UserAdmin)
-    admin.register_model(AuthorsAdmin)
-    admin.register_model(GengresAdmin)
-    admin.register_model(BooksAdmin)
-    admin.register_model(BookCommentsAdmin)
-    admin.register_model(ShelfAdmin)
-    
+    # Для SQLAdmin 0.22.0 используем другой способ регистрации
+    # ModelView классы автоматически регистрируются при создании
+    # Просто возвращаем админ объект
     return admin
