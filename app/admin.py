@@ -27,18 +27,14 @@ class UserAdmin(ModelView, model=UserModel):
     column_list = [
         UserModel.id,
         UserModel.email,
-        UserModel.full_name,
-        UserModel.is_active,
+        UserModel.name,
         UserModel.role_id
     ]
     column_details_exclude_list = [
-        UserModel.hashed_password,
+        UserModel.password_hash,
         UserModel.book_comments,
         UserModel.shelf
     ]
-    column_formatters = {
-        UserModel.is_active: lambda m, a: "✓" if m.is_active else "✗"
-    }
     page_size = 10
     name = "Пользователь"
     name_plural = "Пользователи"
@@ -49,8 +45,7 @@ class AuthorsAdmin(ModelView, model=AuthorsModel):
     """Admin view для авторов"""
     column_list = [
         AuthorsModel.id,
-        AuthorsModel.full_name,
-        AuthorsModel.bio
+        AuthorsModel.name,
     ]
     page_size = 10
     name = "Автор"
@@ -78,8 +73,7 @@ class BooksAdmin(ModelView, model=BooksModel):
         BooksModel.title,
         BooksModel.author_id,
         BooksModel.genre_id,
-        BooksModel.publication_year,
-        BooksModel.rating
+        BooksModel.year,
     ]
     column_details_exclude_list = [
         BooksModel.description,
