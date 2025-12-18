@@ -1,6 +1,5 @@
-from sqladmin import Admin, ModelView, expose
+from sqladmin import Admin, ModelView
 from sqlalchemy.ext.asyncio import AsyncEngine
-from starlette.requests import Request
 from app.models import (
     RoleModel,
     UserModel,
@@ -58,7 +57,6 @@ class GengresAdmin(ModelView, model=GengresModel):
     column_list = [
         GengresModel.id,
         GengresModel.name,
-        GengresModel.description
     ]
     page_size = 10
     name = "Жанр"
@@ -91,7 +89,7 @@ class BookCommentsAdmin(ModelView, model=BookCommentsModel):
         BookCommentsModel.id,
         BookCommentsModel.user_id,
         BookCommentsModel.book_id,
-        BookCommentsModel.rating,
+        BookCommentsModel.comment_text,
         BookCommentsModel.created_at
     ]
     page_size = 10
@@ -106,8 +104,7 @@ class ShelfAdmin(ModelView, model=ShelfModel):
         ShelfModel.id,
         ShelfModel.user_id,
         ShelfModel.book_id,
-        ShelfModel.status,
-        ShelfModel.date_added
+        ShelfModel.status_read
     ]
     page_size = 10
     name = "Полка"
