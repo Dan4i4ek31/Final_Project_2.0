@@ -36,34 +36,12 @@ body{
 }
 
 .topbar .container{display:flex;align-items:center;gap:18px}
-.brand-container{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-right:12px;
-}
-.brand-logo{
-  width:40px;
-  height:40px;
-  display:block;
-  border-radius:8px;
-  object-fit:contain;
-  object-position:center;
-  animation:logoSlideIn 0.5s cubic-bezier(0.2, 0.9, 0.2, 1);
-}
-@keyframes logoSlideIn{
-  from{
-    opacity:0;
-    transform:translateX(-10px) scale(0.95);
-  }
-  to{
-    opacity:1;
-    transform:translateX(0) scale(1);
-  }
-}
 .brand{
   margin:0;font-weight:700;letter-spacing:0.6px;
   display:inline-flex;align-items:center;gap:10px;
+}
+.brand::before{
+  content:"";width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent) 0%, var(--accent-strong) 100%);box-shadow:0 4px 14px rgba(255,160,80,0.12);
 }
 .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
 input[type="search"]{

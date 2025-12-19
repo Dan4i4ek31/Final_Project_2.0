@@ -23,13 +23,12 @@ class UserService:
         return self.db.query(UserModel).filter(UserModel.role_id == role_id).offset(skip).limit(limit).all()
     
     def create_user(self, user: UserCreate):
-        # Хэшируем пароль
         hashed_password = pwd_context.hash(user.password)
         
         db_user = UserModel(
             name=user.name,
             email=user.email,
-            password_hash=hashed_password,  # Сохраняем хэш
+            password_hash=hashed_password,  
             role_id=user.role_id
         )
         

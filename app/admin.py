@@ -1,5 +1,5 @@
 from sqladmin import Admin, ModelView
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.engine import Engine
 from app.models import (
     RoleModel,
     UserModel,
@@ -126,12 +126,12 @@ class ShelfAdmin(ModelView, model=ShelfModel):
     icon = "fa-solid fa-library"
 
 
-def setup_admin(app, engine: AsyncEngine):
-    """Инициализация админ-панели
+def setup_admin(app, engine: Engine):
+    """Инициализация админ-панели с регистрацией всех моделей
     
     Args:
         app: FastAPI приложение
-        engine: AsyncEngine для SQLAlchemy
+        engine: SQLAlchemy Engine (sync) для работы с БД
     """
     admin = Admin(
         app=app,
@@ -141,5 +141,14 @@ def setup_admin(app, engine: AsyncEngine):
         base_url="/admin",
         authentication_backend=None,  # Можно добавить аутентификацию позже
     )
+    
+    # Регистрируем все админ-виды моделей
+    admin.add_view(RoleAdmin)
+    admin.add_view(UserAdmin)
+    admin.add_view(AuthorsAdmin)
+    admin.add_view(GengresAdmin)
+    admin.add_view(BooksAdmin)
+    admin.add_view(BookCommentsAdmin)
+    admin.add_view(ShelfAdmin)
     
     return admin

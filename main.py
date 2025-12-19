@@ -16,7 +16,7 @@ from app.api import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from app.admin import setup_admin
-from app.database.async_db import async_engine
+from app.database.database import engine
 
 app = FastAPI(
     title="Library Management API",
@@ -46,7 +46,7 @@ app.mount("/app/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # ========== Инициализация SQLAdmin ==========
-setup_admin(app, async_engine)
+setup_admin(app, engine)
 # ============================================
 
 @app.get("/", response_class=HTMLResponse)
